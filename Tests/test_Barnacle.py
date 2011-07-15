@@ -16,7 +16,7 @@ class BarnacleTestCase(unittest.TestCase):
         self.datadir = os.path.join(current_directory, "Barnacle/")
 
 
-    def test_barnacle_sample(self):
+    def test_model_sample(self):
         # The target sequence
         sequence = "ACGU"
 
@@ -43,7 +43,7 @@ class BarnacleTestCase(unittest.TestCase):
         self.assertEquals(obtained_file.readlines(), expected_file.readlines())
 
     
-    def test_barnacle_log_likelihood(self):
+    def test_get_log_likelihood(self):
         # The target sequence
         sequence = "ACGU"
 
