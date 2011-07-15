@@ -37,7 +37,7 @@ import time
 class Barnacle(object):
     """
     Barnacle: BAyesian network model of RNA using Circular distributions 
-    and maximum Likelihood Estimation)
+    and maximum Likelihood Estimation
     
     A probabilistic model of RNA conformational space.
 
