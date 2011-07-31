@@ -1,3 +1,8 @@
+# Copyright (C) 2011 by Michele Silva (michele.silva@gmail.com)
+# This code is part of the Biopython distribution and governed by its
+# license. Please see the LICENSE file that should have been included
+# as part of this package.
+
 from mocapy.framework import DBN, NodeFactory, EMEngine, mocapy_seed
 from mocapy.inference import GibbsRandom, LikelihoodInfEngineHMM
 
@@ -22,13 +27,9 @@ class TorusDBN(object):
     structures.
     """
 
-    def __init__(self, number_of_states=55):
-        """
-        @param number_of_nodes: int
-            The number of states for the hidden node.
-        """
+    def __init__(self):             
         # Node sizes
-        self.size_h = number_of_states      
+        self.size_h = 55 # Default hidden node size     
         self.size_aa = 20 # The 20 amino acids       
         self.size_ss = 3 # helix, strand, coil                
         self.size_cis = 2 # cis, trans
@@ -42,11 +43,25 @@ class TorusDBN(object):
         self.check_convergence = False
         self.convergence_window = 80
         self.convergence_threshold = 55
-        
-        # Model
-        self.dbn = self.__create_dbn()
-        
+
+        # Default Model
+        self.dbn = self.__create_dbn() 
+                
      
+    def load_dbn(self, filename):
+        self.dbn = DBN()
+        self.dbn.load(filename)
+        
+        
+    def save_dbn(self, filename):
+        self.dbn.save(filename) 
+        
+    
+    def create_dbn(self, hidden_node_size):
+        self.size_h = hidden_node_size
+        self.dbn = self.__create_dbn()        
+        
+        
     def __create_dbn(self):
         """
         Create the TorusDBN dynamic Bayesian network:
@@ -67,10 +82,6 @@ class TorusDBN(object):
         c: conformation of the peptide bond (assumed to be fixed at 180 
             (trans) or 0 (cis))
         """
-        # Mocapy seed
-        t = int(time.time())
-        mocapy_seed(t)
-
         # Nodes in slice 1
         hidden_1 = NodeFactory.new_discrete_node(self.size_h, "h1")
         dihedral_angles = NodeFactory.new_vonmises2d_node("d")
@@ -96,18 +107,20 @@ class TorusDBN(object):
 
         dbn.construct()
         return dbn
-        
-        
-    def train(self, training_set):
-        """
-        @param training_seq: list(str)
-            The training set for the network.
-        """        
-        mcmc = GibbsRandom(self.dbn)
+
+    
+    def train(self, training_set, use_aic=False):
         self.seq_list, self.mismask_list = self.__create_sequence_and_mismask(
-            training_set)
+            training_set)      
+        return self.__train(use_aic)
+        
+        
+    def __train(self, use_aic):                         
+        self.hmm_ll_calculator = LikelihoodInfEngineHMM(
+            dbn=self.dbn, hidden_node_index=0, check_dbn=False)
+                    
+        mcmc = GibbsRandom(self.dbn)
         em = EMEngine(self.dbn, mcmc, self.seq_list, self.mismask_list, [])
-        #print self.dbn
         
         # EM loop
         ll_list = []
@@ -124,9 +137,14 @@ class TorusDBN(object):
                 if i > window_size:
                      if self.__get_hairiness(ll_list):
                         break
+                        
+        if (use_aic):
+            return self.__calculate_AIC()
+        else:
+            return self.__calculate_BIC()
 
     
-    def calculate_AIC(self):
+    def __calculate_AIC(self):
         """
         The Akaike information criterion (AIC) is a measure of the relative 
         goodness of fit of a statistical model.
@@ -134,28 +152,25 @@ class TorusDBN(object):
         Akaike, Hirotugu (1974). "A new look at the statistical model 
         identification". IEEE Transactions on Automatic Control 19 (6): 
         716-723. doi:10.1109/TAC.1974.1100705. MR0423716.
-        """
+        """            
         hmm_ll_calculator = LikelihoodInfEngineHMM(
             dbn=self.dbn, hidden_node_index=0, check_dbn=False)
-            
         ll_full = hmm_ll_calculator.calc_ll(self.seq_list, self.mismask_list)        
         return 2 * ll_full - 2 * self.__get_parameter_count()
         
                 
-    def calculate_BIC(self):
+    def __calculate_BIC(self):
         """
         The Bayesian information criterion (BIC) is a criterion for model 
         selection among a finite set of models.
         
         Schwarz, Gideon E. (1978). "Estimating the dimension of a model". Annals
         of Statistics 6 (2): 461-464. doi:10.1214/aos/1176344136. MR468014.
-        """
+        """            
         hmm_ll_calculator = LikelihoodInfEngineHMM(
             dbn=self.dbn, hidden_node_index=0, check_dbn=False)
-            
-        ll_full = hmm_ll_calculator.calc_ll(self.seq_list, self.mismask_list)        
-        
-        return 2 * ll_full - 2 * self.__get_parameter_count() * math.log(
+        ll_full = hmm_ll_calculator.calc_ll(self.seq_list, self.mismask_list)              
+        return 2 * ll_full - self.__get_parameter_count() * math.log(
             self.__get_observation_count())
 
     
@@ -255,7 +270,6 @@ class TorusDBN(object):
 
         sequence = numpy.array(output_data)
         mismask = numpy.array(output_mismask, dtype = numpy.uint)
-
         return sequence, mismask
     
 	
@@ -267,3 +281,87 @@ class TorusDBN(object):
 	        return 1
 	    else:
 	        return 2	
+            
+            
+    def find_optimal_model(self, training_set, use_aic=False, min_node=10, 
+        max_node=90, start_int=20, end_int=5, node_samples=4, full_ll_dec=False):
+            
+        self.seq_list, self.mismask_list = self.__create_sequence_and_mismask(
+            training_set)             
+            
+        max_position = 0
+        start_res = start_int
+        avg_full_LL = []
+        
+        IC_array = [[]*n for n in xrange(node_samples + 2)]
+        
+        # Decrease size resolution until threshold (end_int)
+        while start_int >= end_int:
+            # Loop over node sizes
+            for i in xrange(min_node, max_node + 1, start_int):
+                
+                # Continues if at the maximum node size from the previous resolution 
+                if (len(IC_array[0]) > 0 and i == IC_array[0][max_position]) or i <= 0:
+                    continue
+
+                # Add node-size value to header
+                IC_array[0].append(i)
+                IC_cum = 0
+                
+                if start_res == start_int:
+                    avg_full_LL.append(0)
+                    
+                for j in xrange(1, node_samples + 1):
+                    print "Training with node size = %d (sample %d)" % (i, j)
+                    self.create_dbn(hidden_node_size=i)
+                    IC = self.__train(use_aic)
+                    IC_array[j].append(IC)
+                    IC_cum += IC
+                    
+                    if (full_ll_dec):
+                        # Save forward likelihoods in order to infer if it is decreasing
+                        hmm_ll_calculator = LikelihoodInfEngineHMM(
+                            dbn=self.dbn, hidden_node_index=0, check_dbn=False)
+                        ll_full = hmm_ll_calculator.calc_ll(self.seq_list, self.mismask_list)
+                        avg_full_LL[-1] = avg_full_LL[-1] + ll_full/self.__get_observation_count()
+                    
+                # Calculate mean IC for each node-size and add to array
+                IC_array[node_samples + 1].append(IC_cum / node_samples)
+                
+                # Check if log-likelihood is decreasing 
+                if (len(avg_full_LL) > 1) and (avg_full_LL[-1] < avg_full_LL[-2]) and \
+                    (start_res == start_int) and full_ll_dec:
+                    print "Log-likelihood is decreasing. There is no reason to test higher node sizes."
+                    break
+                                     
+            # Column number for maximum IC value
+            max_position = IC_array[node_samples + 1].index(max(IC_array[node_samples + 1])) 
+            print "Optimal node size:", IC_array[0][max_position], "\n"
+          
+            # Update resolution
+            start_int = start_int / 2
+            
+            # Update node limits
+            min_node = IC_array[0][max_position] - start_int
+            max_node = IC_array[0][max_position] + start_int
+     
+        IC_max_node = IC_array[0][max_position]
+        
+        # Final train to the optimal model
+        dbn_list = []
+        IC_list = []
+        
+        for j in xrange(node_samples):
+            self.create_dbn(hidden_node_size=IC_max_node)
+            IC = self.__train(use_aic)
+            IC_list.append(IC)
+            dbn_list.append(self.dbn)
+            
+        IC_max = max(IC_list)
+        self.dbn = dbn_list[IC_list.index(IC_max)]
+        
+        print "Optimal Model:"
+        print "Hidden node size =", IC_max_node
+        print "IC =", IC_max
+        
+        return IC_max_node, IC_max
