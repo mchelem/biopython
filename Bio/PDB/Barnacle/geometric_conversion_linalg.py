@@ -1,19 +1,7 @@
-#  Barnacle: A probabilistic model of RNA conformational space
-#
-#  Copyright (C) 2008 Jes Frellsen, Ida Moltke and Martin Thiim 
-#
-#  Barnacle is free software: you can redistribute it and/or modify
-#  it under the terms of the GNU General Public License as published by
-#  the Free Software Foundation, either version 3 of the License, or
-#  (at your option) any later version.
-#
-#  Barnacle is distributed in the hope that it will be useful,
-#  but WITHOUT ANY WARRANTY; without even the implied warranty of
-#  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-#  GNU General Public License for more details.
-#
-#  You should have received a copy of the GNU General Public License
-#  along with Barnacle.  If not, see <http://www.gnu.org/licenses/>.
+# Copyright (C) 2008 by Jes Frellsen, Ida Moltke and Martin Thiim
+# This code is part of the Biopython distribution and governed by its
+# license. Please see the LICENSE file that should have been included
+# as part of this package.
 
 from Bio.PDB import Vector
 from numpy import array, matrix

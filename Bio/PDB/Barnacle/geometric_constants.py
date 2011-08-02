@@ -1,36 +1,7 @@
-#  Barnacle: A probabilistic model of RNA conformational space
-#
-#  Copyright (C) 2008 Jes Frellsen, Ida Moltke and Martin Thiim 
-#
-#  Barnacle is free software: you can redistribute it and/or modify
-#  it under the terms of the GNU General Public License as published by
-#  the Free Software Foundation, either version 3 of the License, or
-#  (at your option) any later version.
-#
-#  Barnacle is distributed in the hope that it will be useful,
-#  but WITHOUT ANY WARRANTY; without even the implied warranty of
-#  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-#  GNU General Public License for more details.
-#
-#  You should have received a copy of the GNU General Public License
-#  along with Barnacle.  If not, see <http://www.gnu.org/licenses/>.
-
-# Geometric constants in RNA molecules.
-# References:
-#
-# [1] Gelbin A, Schneider B, Clowney L, Hsieh SH, Olson WK and Berman
-#     HM (1996) Geometric parameters in nucleic acids: sugar and
-#     phosphate constituents. J. Am. Chem. Soc. 118:519-528
-#
-# [2] Parkinson G, Vojtechovsky J, Clowney L, Brunger AT, and Berman
-#     HM (1996) New parameters for the refinement of nucleic acid
-#     containing structures. Acta Crystallogr 52:57-64.
-#
-# [3] Olson WK, Bansal M, Burley SK, Dickerson RE, Gerstein M, Harvey
-#     SC, Heinemann U, Lu XJ, Neidle S, Shakked Z, Sklenar H, Suzuki
-#     M, Tung CS, Westhof E, Cynthia Wolberger, Berman HM (2001) A
-#     standard reference frame for the description of nucleic acid
-#     base-pair geometry. J. Mol. Biol. 313: 229-237.
+# Copyright (C) 2008 by Jes Frellsen, Ida Moltke and Martin Thiim
+# This code is part of the Biopython distribution and governed by its
+# license. Please see the LICENSE file that should have been included
+# as part of this package.
 
 from math import pi
 from Bio.PDB import Vector
