@@ -55,12 +55,14 @@ class TorusDBN(object):
         self.sequence = None
         self.mismask_sample = None
         self.mismask = None
+        self.__must_update_sequence = False
+
         
         # Model parameters
-        self.aa = []
-        self.ss = []
-        self.cis = []
-        self.angles = []
+        self.__aa = []
+        self.__ss = []
+        self.__cis = []
+        self.__angles = []
         
         # Mocapy config
         mocapy_seed(seed)
@@ -390,7 +392,7 @@ class TorusDBN(object):
         return IC_max_node, IC_max
         
         
-    def get_log_likelihood(self):
+    def get_log_likelihood(self):        
         if self.sequence is not None:
             hmm_ll_calculator = LikelihoodInfEngineHMM(
                 dbn=self.dbn, hidden_node_index=0, check_dbn=False)
@@ -401,39 +403,67 @@ class TorusDBN(object):
         return ll
         
         
-    def sample(self, start=0, end=None):
-        if end is None:
-            end = len(self.aa)
-                        
-        self.sequence, self.mismask_sample, self.mismask = self.__create_sequence()
-                
+    def sample(self):
+        
+        if self.__must_update_sequence:
+            self.__update_sequence()            
+        
         inf_engine = SampleInfEngineHMM(
-            self.dbn, self.sequence, self.mismask_sample, hidden_node_index=0)
-                        
+            self.dbn, self.sequence, self.mismask_sample, hidden_node_index=0)                        
         self.sample_data = inf_engine.sample_next()        
         
         return self.sample_data
         
         
-    def __create_sequence(self):   
-        aa_id_pos = 3
-        num_nodes = 6
-        len_angles = len(self.aa)
+    def __update_sequence(self):  
+        """
+        Sequence:  hidden phi psi aa ss cis (0 - 5)
+        Mismask:  hidden vonmises aa ss cis (0 - 4)
         
-        phi_pos = 1
-        psi_pos = 2
-        
-        data = numpy.zeros((len_angles, num_nodes))
-        mism_sample = numpy.ones((len_angles, num_nodes-1), dtype=numpy.uint)
-        mism = numpy.ones((len_angles, num_nodes-1), dtype=numpy.uint)
-                
-        data[:,aa_id_pos] = numpy.array([one_to_index(aa) for aa in self.aa])        
-        mism_sample[:,aa_id_pos-1] = 0
+        """
+        sequence_len = max(len(self.__aa), len(self.__ss), len(self.__cis), 
+            len(self.__angles))   
+        num_nodes = 5
 
+        self.sequence = numpy.zeros((sequence_len, num_nodes + 1)) 
+        self.mismask_sample = numpy.ones((sequence_len, num_nodes), dtype=numpy.uint)
+        self.mismask = numpy.zeros((sequence_len, num_nodes), dtype=numpy.uint)
+        self.mismask[:,0] = 1
         
-        mism[:,aa_id_pos-1] = 0
-        mism[:,phi_pos] = 0
-        mism[:,psi_pos] = 0
+        if len(self.__angles) > 0:            
+            self.mismask_sample[:,1] = numpy.zeros(sequence_len) 
+            self.sequence[:,1] = numpy.array(self.__angles[0])  
+            self.sequence[:,2] = numpy.array(self.__angles[1])                       
 
-        return data, mism_sample, mism
+        self.__set_sequence_and_mismask(self.__aa, 2, sequence_len) 
+        self.__set_sequence_and_mismask(self.__ss, 3, sequence_len) 
+        self.__set_sequence_and_mismask(self.__cis, 4, sequence_len) 
+              
+        self.__must_update_sequence = False 
         
+        
+    def __set_sequence_and_mismask(self, parameter, position, sequence_len):
+        if len(parameter) > 0:
+            self.mismask_sample[:,position] = numpy.zeros(
+                sequence_len, dtype=numpy.uint) 
+            self.sequence[:,position + 1] = numpy.array(parameter)        
+    
+    
+    def set_aa(self, aa):
+        self.__aa = [one_to_index(x) for x in aa]
+        self.__must_update_sequence = True
+        
+        
+    def set_ss(self, ss):
+        self.__ss = ss
+        self.__must_update_sequence = True
+        
+        
+    def set_cis(self, cis):
+        self.__cis = cis
+        self.__must_update_sequence = True
+        
+    
+    def set_angles(self, angles):
+        self.__angles = angles
+        self.__must_update_sequence = True

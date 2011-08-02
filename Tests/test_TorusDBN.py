@@ -19,7 +19,8 @@ class TorusTestCase(unittest.TestCase):
     
     
     def get_training_set(self):
-        pdb_files = os.listdir(os.path.join(self.datadir, "PDB"))
+        pdb_dir = os.path.join(self.datadir, "PDB")
+        pdb_files =  [os.path.join(pdb_dir, f) for f in os.listdir(pdb_dir)]
         return pdb_files
     
     
@@ -45,11 +46,25 @@ class TorusTestCase(unittest.TestCase):
         self.assertAlmostEquals(AIC, -10210.10216, places=4)
         
         
-    def test_model_sample(self):
+    def test_model_sample(self):       
         model = TorusDBN(seed=123)
-        model.aa = 'ACDEFGHIK'
-        model.sample()
-        self.assertAlmostEquals(model.get_log_likelihood(), -58.3761, places=4)
+        
+        model.set_aa('ACDEFGHIK')        
+        sample = model.sample()        
+        self.assertAlmostEquals(model.get_log_likelihood(), -74.50195, places=4)
+        
+        model = TorusDBN(seed=123)        
+        model.set_aa('ACDE')
+        model.set_cis([1, 1, 0, 0])              
+        model.set_ss([1, 2, 2, 1])
+        sample = model.sample()        
+        self.assertAlmostEquals(model.get_log_likelihood(), -33.111980, places=4)
+                
+        model = TorusDBN(seed=123)   
+        model.set_aa('ACDE')
+        model.set_angles([[1.49, -0.64, 1.32, -0.66], [-1.64, 1.34, -0.79, 1.29]])        
+        sample = model.sample()        
+        self.assertAlmostEquals(model.get_log_likelihood(), -27.74002, places=4)
             
           
 
