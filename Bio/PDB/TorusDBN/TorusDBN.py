@@ -4,11 +4,11 @@
 # as part of this package.
 
 from mocapy.framework import DBN, NodeFactory, EMEngine, mocapy_seed
-from mocapy.inference import GibbsRandom, LikelihoodInfEngineHMM
+from mocapy.inference import GibbsRandom, LikelihoodInfEngineHMM, SampleInfEngineHMM
 
 from Bio.PDB import PDBParser
 from Bio.PDB.DSSP import DSSP
-from Bio.PDB.Polypeptide import PPBuilder, three_to_index
+from Bio.PDB.Polypeptide import PPBuilder, three_to_index, one_to_index
 from Bio.PDB.Vector import calc_dihedral
 
 import numpy
@@ -27,7 +27,7 @@ class TorusDBN(object):
     structures.
     """
 
-    def __init__(self):             
+    def __init__(self, seed=int(time.time())):             
         # Node sizes
         self.size_h = 55 # Default hidden node size     
         self.size_aa = 20 # The 20 amino acids       
@@ -45,7 +45,25 @@ class TorusDBN(object):
         self.convergence_threshold = 55
 
         # Default Model
-        self.dbn = self.__create_dbn() 
+        self.dbn = self.__create_dbn()
+        
+        # Training sequences and mismasks 
+        self.seq_list = []
+        self.mismask_list = []
+        
+        # Sampling sequence and mismask
+        self.sequence = None
+        self.mismask_sample = None
+        self.mismask = None
+        
+        # Model parameters
+        self.aa = []
+        self.ss = []
+        self.cis = []
+        self.angles = []
+        
+        # Mocapy config
+        mocapy_seed(seed)
                 
      
     def load_dbn(self, filename):
@@ -84,7 +102,12 @@ class TorusDBN(object):
         """
         # Nodes in slice 1
         hidden_1 = NodeFactory.new_discrete_node(self.size_h, "h1")
-        dihedral_angles = NodeFactory.new_vonmises2d_node("d")
+        
+        mus = numpy.zeros((self.size_h, 2))
+        kappas = numpy.ones((self.size_h, 3)) * 4
+        
+        dihedral_angles = NodeFactory.new_vonmises2d_node("d", mus, kappas)
+        
         amino_acids = NodeFactory.new_discrete_node(self.size_aa, "a")
         secondary_structure = NodeFactory.new_discrete_node(self.size_ss, "s")
         cis = NodeFactory.new_discrete_node(self.size_cis, "c")
@@ -365,3 +388,52 @@ class TorusDBN(object):
         print "IC =", IC_max
         
         return IC_max_node, IC_max
+        
+        
+    def get_log_likelihood(self):
+        if self.sequence is not None:
+            hmm_ll_calculator = LikelihoodInfEngineHMM(
+                dbn=self.dbn, hidden_node_index=0, check_dbn=False)
+            ll = hmm_ll_calculator.calc_ll(self.sequence, self.mismask)
+        else:
+            raise Exception("TorusDBN.get_log_likelihood() can only be called after a sample has been drawn.")
+            
+        return ll
+        
+        
+    def sample(self, start=0, end=None):
+        if end is None:
+            end = len(self.aa)
+                        
+        self.sequence, self.mismask_sample, self.mismask = self.__create_sequence()
+                
+        inf_engine = SampleInfEngineHMM(
+            self.dbn, self.sequence, self.mismask_sample, hidden_node_index=0)
+                        
+        self.sample_data = inf_engine.sample_next()        
+        
+        return self.sample_data
+        
+        
+    def __create_sequence(self):   
+        aa_id_pos = 3
+        num_nodes = 6
+        len_angles = len(self.aa)
+        
+        phi_pos = 1
+        psi_pos = 2
+        
+        data = numpy.zeros((len_angles, num_nodes))
+        mism_sample = numpy.ones((len_angles, num_nodes-1), dtype=numpy.uint)
+        mism = numpy.ones((len_angles, num_nodes-1), dtype=numpy.uint)
+                
+        data[:,aa_id_pos] = numpy.array([one_to_index(aa) for aa in self.aa])        
+        mism_sample[:,aa_id_pos-1] = 0
+
+        
+        mism[:,aa_id_pos-1] = 0
+        mism[:,phi_pos] = 0
+        mism[:,psi_pos] = 0
+
+        return data, mism_sample, mism
+        

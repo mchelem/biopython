@@ -12,31 +12,44 @@ from Bio.PDB.TorusDBN.TorusDBN import TorusDBN
 
 class TorusTestCase(unittest.TestCase):
 
+    
+    def setUp(self):
+        current_directory = os.path.dirname(globals()["__file__"])
+        self.datadir = os.path.join(current_directory, "TorusDBN/")
+    
+    
     def get_training_set(self):
-        return ['1BJQ.pdb', '1FAT.pdb'] #, '1MBN.pdb', '3QKS.pdb', '4MBN.pdb', '6GCH.pdb', '7DFR.pdb']
-        
-        
-    def test_model_training(self):        
-        training_set = self.get_training_set()        
-
-        model = TorusDBN()
-        
-        BIC = model.train(training_set)
-        self.assertAlmostEquals(BIC, -22374.2444164, places=4)
-        
-        AIC = model.train(training_set, use_aic=True)
-        self.assertAlmostEquals(AIC, -10177.72654, places=4)
-
-                
+        pdb_files = os.listdir(os.path.join(self.datadir, "PDB"))
+        return pdb_files
+    
+    
     def test_find_optimal_model(self):
         training_set = self.get_training_set()        
         
-        model = TorusDBN()
+        model = TorusDBN(seed=123)
         hidden_node_size, IC = model.find_optimal_model(training_set,
-            node_samples=2, full_ll_dec=True)
+            node_samples=2, max_node=30, full_ll_dec=True)
             
         self.assertEquals(hidden_node_size, 5)
-        self.assertAlmostEquals(IC , -1942.49842302, places=4)
+        self.assertAlmostEquals(IC , -1892.01090, places=4)
+        
+        
+    def test_model_training(self):        
+        training_set = self.get_training_set()      
+        model = TorusDBN(seed=123)  # setting seed for reproducibility
+        
+        BIC = model.train(training_set)
+        self.assertAlmostEquals(BIC, -22375.04932, places=4)
+        
+        AIC = model.train(training_set, use_aic=True)
+        self.assertAlmostEquals(AIC, -10210.10216, places=4)
+        
+        
+    def test_model_sample(self):
+        model = TorusDBN(seed=123)
+        model.aa = 'ACDEFGHIK'
+        model.sample()
+        self.assertAlmostEquals(model.get_log_likelihood(), -58.3761, places=4)
             
           
 
