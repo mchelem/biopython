@@ -236,7 +236,12 @@ class Vector(object):
 
     def __mul__(self, other):
         "Return Vector.Vector (dot product)"
-        return sum(self._ar*other._ar)
+        if isinstance(other, Vector):
+            return sum(self._ar*other._ar)
+        else:
+            a=self._ar*other
+        return Vector(a)
+
 
     def __div__(self, x):
         "Return Vector(coords/a)"
@@ -261,6 +266,9 @@ class Vector(object):
 
     def __setitem__(self, i, value):
         self._ar[i]=value
+        
+    def __len__(self):
+        return len(self._ar)
 
     def norm(self):
         "Return vector norm"
