@@ -11,6 +11,8 @@ from Bio.PDB.DSSP import DSSP
 from Bio.PDB.Polypeptide import PPBuilder, three_to_index, one_to_index
 from Bio.PDB.Vector import calc_dihedral
 
+from Bio.PDB.TorusDBN.utils import aa_to_list, ss_to_list
+
 import numpy
 import math
 import time
@@ -106,7 +108,7 @@ class TorusDBN(object):
         hidden_1 = NodeFactory.new_discrete_node(self.size_h, "h1")
         
         mus = numpy.zeros((self.size_h, 2))
-        kappas = numpy.ones((self.size_h, 3)) * 4
+        kappas = numpy.ones((self.size_h, 3)) * 0.5
         
         dihedral_angles = NodeFactory.new_vonmises2d_node("d", mus, kappas)
         
@@ -296,16 +298,7 @@ class TorusDBN(object):
         sequence = numpy.array(output_data)
         mismask = numpy.array(output_mismask, dtype = numpy.uint)
         return sequence, mismask
-    
-	
-    def __dssp2i(self, ss):
-	    "Convert SS label to index"
-	    if ss in ("H", "G", "I"):
-	        return 0
-	    elif ss in ("E","B"):
-	        return 1
-	    else:
-	        return 2	
+        
             
             
     def find_optimal_model(self, training_set, use_aic=False, min_node=10, 
@@ -450,12 +443,12 @@ class TorusDBN(object):
     
     
     def set_aa(self, aa):
-        self.__aa = [one_to_index(x) for x in aa]
+        self.__aa = aa_to_list(aa)
         self.__must_update_sequence = True
         
         
     def set_ss(self, ss):
-        self.__ss = ss
+        self.__ss = ss_to_list(ss)
         self.__must_update_sequence = True
         
         
