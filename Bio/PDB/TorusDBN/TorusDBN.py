@@ -15,6 +15,7 @@ from Bio.PDB.Vector import calc_dihedral
 from Bio.PDB.TorusDBN.utils import aa_to_list, ss_to_list, dssp_to_index
 from Bio.PDB.TorusDBN.utils import build_structure, build_sequence_aa, build_sequence_ss
 from Bio.PDB.TorusDBN.geometry import get_coordinates_from_angles
+from Bio.PDB.TorusDBN.TorusDBNExceptions import TorusDBNBuildPolypeptideException
 
 import numpy
 import math
@@ -241,9 +242,13 @@ class TorusDBN(object):
         seq_list = []
         mismask_list = []
         for filename in training_set:
-            sequence, mismask = self.__get_data_from_file(filename)
-            seq_list.append(sequence)
-            mismask_list.append(mismask)
+            try:
+                sequence, mismask = self.__get_data_from_file(filename)
+                seq_list.append(sequence)
+                mismask_list.append(mismask)
+            except TorusDBNBuildPolypeptideException:
+                print "\nCould not create polypeptide list from file %s ." % (filename)
+                print "This file was not included in the training set.\n"
             
         return seq_list, mismask_list
         
@@ -261,9 +266,16 @@ class TorusDBN(object):
         ppb = PPBuilder()
         pp_list = ppb.build_peptides(structure[0])
 
-        pp = pp_list[0]
-        phi_psi_list = pp.get_phi_psi_list()
+        try:
+            pp = pp_list[0]
+        except IndexError:
+            raise TorusDBNBuildPolypeptideException(
+                "Could not create a list of Polypeptide objects from the file %s." 
+                % (chain_pdb)
+            )
 
+        phi_psi_list = pp.get_phi_psi_list()
+        
         for i in xrange(1, len(phi_psi_list)-1):
             seq = [0] * 6
 

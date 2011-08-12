@@ -118,42 +118,43 @@ def make_dssp_dict(filename):
         keys = []
         for l in handle.readlines():
             sl = l.split()
-            if sl[1] == "RESIDUE":
-                # Start parsing from here
-                start = 1
-                continue
-            if not start:
-                continue
-            if l[9] == " ":
-                # Skip -- missing residue
-                continue
-            resseq = int(l[5:10])
-            icode = l[10]
-            chainid = l[11]
-            aa = l[13]
-            ss = l[16]
-            if ss == " ":
-                ss = "-"
-            try:
-                acc = int(l[34:38]) 
-                phi = float(l[103:109])
-                psi = float(l[109:115])
-            except ValueError, exc:
-                # DSSP output breaks its own format when there are >9999
-                # residues, since only 4 digits are allocated to the seq num
-                # field.  See 3kic chain T res 321, 1vsy chain T res 6077.
-                # Here, look for whitespace to figure out the number of extra
-                # digits, and shift parsing the rest of the line by that amount.
-                if l[34] != ' ':
-                    shift = l[34:].find(' ')
-                    acc = int((l[34+shift:38+shift]))
-                    phi = float(l[103+shift:109+shift])
-                    psi = float(l[109+shift:115+shift])
-                else:
-                    raise ValueError, exc
-            res_id = (" ", resseq, icode)
-            dssp[(chainid, res_id)] = (aa, ss, acc, phi, psi)
-            keys.append((chainid, res_id))
+            if len(sl) > 1:
+                if sl[1] == "RESIDUE":
+                    # Start parsing from here
+                    start = 1
+                    continue
+                if not start:
+                    continue
+                if l[9] == " ":
+                    # Skip -- missing residue
+                    continue
+                resseq = int(l[5:10])
+                icode = l[10]
+                chainid = l[11]
+                aa = l[13]
+                ss = l[16]
+                if ss == " ":
+                    ss = "-"
+                try:
+                    acc = int(l[34:38]) 
+                    phi = float(l[103:109])
+                    psi = float(l[109:115])
+                except ValueError, exc:
+                    # DSSP output breaks its own format when there are >9999
+                    # residues, since only 4 digits are allocated to the seq num
+                    # field.  See 3kic chain T res 321, 1vsy chain T res 6077.
+                    # Here, look for whitespace to figure out the number of extra
+                    # digits, and shift parsing the rest of the line by that amount.
+                    if l[34] != ' ':
+                        shift = l[34:].find(' ')
+                        acc = int((l[34+shift:38+shift]))
+                        phi = float(l[103+shift:109+shift])
+                        psi = float(l[109+shift:115+shift])
+                    else:
+                        raise ValueError, exc
+                res_id = (" ", resseq, icode)
+                dssp[(chainid, res_id)] = (aa, ss, acc, phi, psi)
+                keys.append((chainid, res_id))
     finally:
         handle.close()
     return dssp, keys
