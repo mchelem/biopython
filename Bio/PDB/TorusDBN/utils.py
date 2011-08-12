@@ -4,6 +4,10 @@
 # as part of this package.
 
 from Bio.PDB.Polypeptide import PPBuilder, one_to_index, index_to_one
+from Bio.PDB import StructureBuilder
+from Bio.PDB.Polypeptide import index_to_three
+import inspect
+import numpy
 
 __dssp_to_index = {'H':0, 'G':0, 'I':0, 'E':1, 'B':1}
 __index_to_dssp = {0: 'H', 1:'E', 2:'C'}
@@ -67,3 +71,61 @@ def ss_to_list(ss_seq):
     elif isinstance(ss_seq, str):
         new_ss_seq = [dssp_to_index(ss) for ss in ss_seq]
     return new_ss_seq
+    
+    
+def build_structure(coords, aa_seq, atom_names, superimpose_reference=None):
+    """
+    Build protein structure object    
+    """
+    sb = StructureBuilder.StructureBuilder()
+    sb.init_structure('0')
+    sb.init_model(0)
+    sb.init_chain('0')
+    sb.init_seg('')
+    for i in xrange(len(coords)):
+        res_index = i // len(atom_names)
+        if i%len(atom_names)==0:
+                sb.init_residue(index_to_three(aa_seq[res_index]), ' ', res_index+1, ' ')
+        coord = coords[i]
+        name_index = i%len(atom_names)
+
+        if not (index_to_three(aa_seq[res_index]) == 'GLY' and atom_names[name_index] == 'CB'):
+            # Compensate for strange bug in newer versions of biopython (>=1.53)
+            if 'element' in inspect.getargspec(sb.init_atom)[0]:
+                sb.init_atom(atom_names[name_index], numpy.array(coord), 0.0, 0.0, ' ', 
+                    atom_names[name_index], None, atom_names[name_index][0])
+            else:
+                sb.init_atom(atom_names[name_index], array(coord), 0.0, 0.0, ' ',
+                    atom_names[name_index])
+    structure = sb.get_structure()
+
+    if superimpose_reference:
+        ppb = PPBuilder()
+        sup = Superimposer()
+        pp_reference = ppb.build_peptides(superimpose_reference)[0]
+        pp_structure = ppb.build_peptides(structure)[0]
+
+        # CA only
+        fixed = pp_reference.get_ca_list()
+        moving = pp_structure.get_ca_list()
+        moving_all = Selection.unfold_entities(structure, "A")        
+        sup.set_atoms(fixed, moving)
+        sup.apply(moving_all)
+    
+    return structure
+    
+    
+def build_sequence_aa(aa_seq):
+    """
+    Construct an amino acid sequence
+    """
+    output = [index_to_one(aa) for aa in aa_seq]
+    return ''.join(output)
+
+
+def build_sequence_ss(ss_seq):
+    """
+    Construct a secondary structure sequence
+    """
+    output = [index_to_dssp(ss) for ss in ss_seq]
+    return ''.join(output)

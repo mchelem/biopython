@@ -226,10 +226,4 @@ def get_coordinates_from_angles(angles, cis, aa):
             
     return numpy.reshape(coords, coords.size,order='F').reshape(
         (L * atoms_per_residue, 3))[:-1]
-    
 
-aa = [1, 2, 3, 4] 
-cis = [0, 0, 0, 0]
-angles = [[1.3, -0.44], [0.55, 1.2], [-0.12, 1.4], [1.1, -1.0]]
-
-print get_coordinates_from_angles(angles, cis, aa)

@@ -6,12 +6,15 @@
 from mocapy.framework import DBN, NodeFactory, EMEngine, mocapy_seed
 from mocapy.inference import GibbsRandom, LikelihoodInfEngineHMM, SampleInfEngineHMM
 
+from Bio.PDB.PDBIO import PDBIO
 from Bio.PDB import PDBParser
 from Bio.PDB.DSSP import DSSP
 from Bio.PDB.Polypeptide import PPBuilder, three_to_index, one_to_index
 from Bio.PDB.Vector import calc_dihedral
 
-from Bio.PDB.TorusDBN.utils import aa_to_list, ss_to_list
+from Bio.PDB.TorusDBN.utils import aa_to_list, ss_to_list, dssp_to_index
+from Bio.PDB.TorusDBN.utils import build_structure, build_sequence_aa, build_sequence_ss
+from Bio.PDB.TorusDBN.geometry import get_coordinates_from_angles
 
 import numpy
 import math
@@ -19,6 +22,7 @@ import time
 
 CIS = 0
 TRANS = 1
+
 
 
 class TorusDBN(object):
@@ -270,7 +274,7 @@ class TorusDBN(object):
 
             # Secondary Structure
             ss = res.xtra["SS_DSSP"]
-            ss_index = self.__dssp2i(ss)
+            ss_index = dssp_to_index(ss)
 
             # Angles
             seq[1:3] = phi_psi_list[i]
@@ -297,8 +301,7 @@ class TorusDBN(object):
 
         sequence = numpy.array(output_data)
         mismask = numpy.array(output_mismask, dtype = numpy.uint)
-        return sequence, mismask
-        
+        return sequence, mismask        
             
             
     def find_optimal_model(self, training_set, use_aic=False, min_node=10, 
@@ -403,10 +406,19 @@ class TorusDBN(object):
         
         inf_engine = SampleInfEngineHMM(
             self.dbn, self.sequence, self.mismask_sample, hidden_node_index=0)                        
-        self.sample_data = inf_engine.sample_next()        
+        self.sample_data = inf_engine.sample_next()     
+        
+        self.__save_sample(self.sample_data)   
         
         return self.sample_data
         
+        
+    def __save_sample(self, sample):
+        self.__angles = numpy.array([sample[:,1], sample[:,2]]).transpose()
+        self.__aa = sample[:,3]
+        self.__ss = sample[:,4]
+        self.__cis = sample[:,5]       
+
         
     def __update_sequence(self):  
         """
@@ -460,3 +472,39 @@ class TorusDBN(object):
     def set_angles(self, angles):
         self.__angles = angles
         self.__must_update_sequence = True
+        
+        
+    def get_ss(self):
+        return build_sequence_ss(self.__ss)
+        
+    
+    def get_aa(self):
+        return build_sequence_aa(self.__aa)
+        
+    
+    def get_angles(self):
+        return self.__angles
+        
+    
+    def get_cis(self):
+        return self.__cis
+    
+        
+    def get_structure(self, superimpose_structure=None):
+        return build_structure(
+            self.get_coordinates(), 
+            self.__aa, 
+            ['N', 'CA', 'C', 'CB', 'O'],                                  
+            superimpose_structure,
+        )
+        
+        
+    def get_coordinates(self):
+        return get_coordinates_from_angles(self.__angles, self.__cis, self.__aa)
+    
+    
+    def save_structure(self, filename, superimpose_structure=None):        
+        io = PDBIO()
+        io.set_structure(self.get_structure())
+        io.save(filename)
+        
