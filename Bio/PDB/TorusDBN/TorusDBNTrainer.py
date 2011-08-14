@@ -3,7 +3,7 @@
 # license. Please see the LICENSE file that should have been included
 # as part of this package.
 
-from mocapy.framework import EMEngine, mocapy_seed
+from mocapy.framework import EMEngine, mocapy_seed, eMISMASK
 from mocapy.inference import GibbsRandom, LikelihoodInfEngineHMM
 
 from Bio.PDB import PDBParser
@@ -15,7 +15,6 @@ from Bio.PDB.Vector import calc_dihedral
 from Bio.PDB.TorusDBN import TorusDBNModel
 from Bio.PDB.TorusDBN.TorusDBNExceptions import TorusDBNBuildPolypeptideException
 from Bio.PDB.TorusDBN._utils import dssp_to_index
-
 
 import numpy
 import math
@@ -65,6 +64,7 @@ class TorusDBNTrainer(object):
         ic = self.__train(use_aic)
         self.info('Training finished.')
         return ic        
+        
         
     def __train(self, use_aic):        
         dbn = self.model.dbn
@@ -247,7 +247,7 @@ class TorusDBNTrainer(object):
         
         for i in xrange(1, len(phi_psi_list)-1):
             seq = [0] * 6
-            mism = [1] + 4 * [0]
+            mism = [eMISMASK.MOCAPY_HIDDEN] + 4 * [eMISMASK.MOCAPY_OBSERVED]
             
             # Amino acid
             res = pp[i]
@@ -256,9 +256,9 @@ class TorusDBNTrainer(object):
             
             if missing_residue[i]:
                 seq[3] = aa_index
-                mism[1] = 2 # angles unknown
-                mism[3] = 2 # ss unknown
-                mism[4] = 2 # cis unknown  
+                mism[1] = eMISMASK.MOCAPY_MISSING # angles unknown
+                mism[3] = eMISMASK.MOCAPY_MISSING # ss unknown
+                mism[4] = eMISMASK.MOCAPY_MISSING # cis unknown  
             else:
                 # Secondary Structure
                 ss = res.xtra["SS_DSSP"]
@@ -268,7 +268,7 @@ class TorusDBNTrainer(object):
                 if None in phi_psi_list[i]:
                 # Previous or next residue missing, therefore angles are
                 # Unknown
-                    mism[1] = 2                                                 
+                    mism[1] = eMISMASK.MOCAPY_MISSING                                                 
                 else:
                     seq[1:3] = phi_psi_list[i]
                     
@@ -277,7 +277,7 @@ class TorusDBNTrainer(object):
                 
                  # Cis/Trans information   
                 if missing_residue[i-1]:
-                    mism[4] = 2 # cis unknown   
+                    mism[4] = eMISMASK.MOCAPY_MISSING # cis unknown   
                 else:                                        
                     seq[5] = self.__get_conformation(res, pp[i-1])
 
