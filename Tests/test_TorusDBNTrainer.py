@@ -32,11 +32,14 @@ class TorusDBNTrainerTestCase(unittest.TestCase):
         trainer.em_steps = 10 
         trainer.burnin_steps = 5
         
-        BIC = trainer.train(training_set)
-        self.assertAlmostEquals(BIC, -37102.68779, places=4)
+        BIC = trainer.train(
+            training_set, 
+            missing_residues=os.path.join(self.datadir, "missing_residues")
+        )
+        self.assertAlmostEquals(BIC, -63897.94317, places=4)
         
         AIC = trainer.train(training_set, use_aic=True)
-        self.assertAlmostEquals(AIC, -16070.97469, places=4)   
+        self.assertAlmostEquals(AIC, -36759.810827, places=4)   
         
         
     def test_model_optimization(self):
@@ -50,7 +53,7 @@ class TorusDBNTrainerTestCase(unittest.TestCase):
             node_samples=1, max_node=30, full_ll_dec=True)
             
         self.assertEquals(hidden_node_size, 5)
-        self.assertAlmostEquals(IC , -7215.183915, places=4)
+        self.assertAlmostEquals(IC ,  -1702.49251, places=4)
         
   
   

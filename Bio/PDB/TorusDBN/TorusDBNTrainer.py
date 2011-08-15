@@ -13,12 +13,14 @@ from Bio.PDB.Residue import Residue
 from Bio.PDB.Vector import calc_dihedral
 
 from Bio.PDB.TorusDBN import TorusDBNModel
-from Bio.PDB.TorusDBN.TorusDBNExceptions import TorusDBNBuildPolypeptideException
+from Bio.PDB.TorusDBN.TorusDBNExceptions import TorusDBNBuildPolypeptideException, \
+    TorusDBNChainBreakException
 from Bio.PDB.TorusDBN._utils import dssp_to_index
 
 import numpy
 import math
 import time
+import os
 
 
 
@@ -51,13 +53,61 @@ class TorusDBNTrainer(object):
         # Training sequences and mismasks 
         self.seq_list = []
         self.mismask_list = []
+        self.__missing_residues = {}
             
             
     def get_model(self):
         return self.model
         
         
-    def train(self, training_set, use_aic=False):
+    def __read_missing_residues(self, filename):  
+        
+        def get_chain_index(chain_index):
+            if chain_index.find(':'):
+                index_range = chain_index.split(':') 
+                chain_index_list = range(
+                    int(index_range[0]), 
+                    int(index_range[-1]) + 1
+                )
+            else:
+                chain_index_list = [int(index)]
+            return chain_index_list
+                
+        try:
+            residues_file = open(filename)
+            for i, line in enumerate(residues_file.readlines()):
+                line = line.strip()
+                if not line.startswith("#") and len(line) > 1:
+                    try: 
+                        chain_pdb, chain_id, res_index, res_name = \
+                            line.split()
+                            
+                        chain_index_list = []
+                        
+                        if chain_id.find(',') != -1:
+                            chain_list = chain_id.split(',') 
+                            for chain in chain_list:
+                                chain_index_list += get_chain_index(chain)                                
+                        else:
+                            chain_index_list += get_chain_index(chain_id)
+                        
+                        for chain_index in chain_index_list:
+                            self.__missing_residues[
+                                (chain_pdb, int(chain_index), int(res_index))
+                            ] = Residue(id=('', int(res_index), ''), resname= res_name, segid='')
+                    except ValueError:
+                        self.info(
+                            "Could not read missing residues file %s at line %d. Skipped." % 
+                            (filename, i + 1)
+                        )
+        except IOError:
+            self.info("Could not open file %s for reading missing residues." % filename)
+        
+        
+    def train(self, training_set, missing_residues=None, use_aic=False):
+        if missing_residues is not None:
+            self.__read_missing_residues(missing_residues)
+            
         self.seq_list, self.mismask_list = self.__create_sequence_and_mismask(
             training_set)   
         self.info('Training started...')
@@ -170,34 +220,45 @@ class TorusDBNTrainer(object):
                 seq_list += sequences
                 mismask_list += mismasks
             except TorusDBNBuildPolypeptideException:
-                self.info("\nCould not create polypeptide list from file %s ." % (filename))
-            
+                self.info("Could not create polypeptide list from file %s ." % (filename))
+            except TorusDBNChainBreakException, error:
+                self.info(error.message)
+                self.info("The file %s has chain breaks and was not included in the training set." % (filename))
+
         return seq_list, mismask_list
         
         
-    def __get_pp_with_chain_break(self, pp_list):
-        import copy
-        pp = copy.deepcopy(pp_list[0])
-        missing_residues_index = []
+    def __get_missing_residue(self, chain_pdb, chain_index, residue_index):        
+        chain_pdb = os.path.split(chain_pdb)[-1]
+        try:
+            return self.__missing_residues[(chain_pdb, chain_index, residue_index)]
+        except KeyError:
+            raise TorusDBNChainBreakException(
+                "Chain break in file %s, chain %d, residue %d, could not be handled." % 
+                (chain_pdb, chain_index, residue_index)
+            )
         
-        missing_residue = Residue(id=None, resname= 'ALA', segid='')
         
-        if len(pp_list) > 1:
-            for pp_next in pp_list[1:]:
-                if pp_next[0].get_id()[1] != 1:
-                    missing_residues = range(pp[-1].get_id()[1] + 1, pp_next[0].get_id()[1])
-                    missing_residues_index += missing_residues
-                    for index in missing_residues:
-                        pp.append(missing_residue)
-                    pp += pp_next
-                else:
-                    break        
-        
-        missing_residues = [0] * len(pp)
-        for i in missing_residues_index:
-            missing_residues[i-1] = 1
-            
-        return pp, missing_residues
+    def __get_pp_with_chain_break(self, chain_pdb, pp_list):
+        pp_chains = []
+        missing_residues = []
+                       
+        for pp in pp_list:
+            if pp[0].get_id()[1] == 1:
+                pp_chains.append(pp)  
+                missing_residues.append([])                                  
+            else:
+                last_residue = pp_chains[-1][-1].get_id()[1] + 1
+                first_residue = pp[0].get_id()[1]                    
+                missing_residues_index = range(last_residue, first_residue)
+                missing_residues[-1] += missing_residues_index
+                
+                for res_index in missing_residues_index:
+                    pp_chains[-1].append(self.__get_missing_residue(
+                        chain_pdb, len(pp_chains), res_index))
+                pp_chains[-1] += pp
+
+        return pp_chains, missing_residues
 
 
     def __get_conformation(self, res, prev_res):
@@ -237,52 +298,53 @@ class TorusDBNTrainer(object):
                 "Could not create a list of Polypeptide objects from the file %s." 
                 % (chain_pdb)
             )
-        elif len(pp_list) == 1:
-            pp = pp_list[0]
-            missing_residue = [0] * len(pp)
-        if len(pp_list) > 1:
-           pp, missing_residue = self.__get_pp_with_chain_break(pp_list)
+        else:
+           pp_chains, chain_missing_residues = self.__get_pp_with_chain_break(chain_pdb, pp_list)
                        
-        phi_psi_list = pp.get_phi_psi_list()
-        
-        for i in xrange(1, len(phi_psi_list)-1):
-            seq = [0] * 6
-            mism = [eMISMASK.MOCAPY_HIDDEN] + 4 * [eMISMASK.MOCAPY_OBSERVED]
-            
-            # Amino acid
-            res = pp[i]
-            res_name = res.get_resname()
-            aa_index = three_to_index(res_name)
-            
-            if missing_residue[i]:
-                seq[3] = aa_index
-                mism[1] = eMISMASK.MOCAPY_MISSING # angles unknown
-                mism[3] = eMISMASK.MOCAPY_MISSING # ss unknown
-                mism[4] = eMISMASK.MOCAPY_MISSING # cis unknown  
-            else:
-                # Secondary Structure
-                ss = res.xtra["SS_DSSP"]
-                ss_index = dssp_to_index(ss)                
-                                 
-                # Angles
-                if None in phi_psi_list[i]:
-                # Previous or next residue missing, therefore angles are
-                # Unknown
-                    mism[1] = eMISMASK.MOCAPY_MISSING                                                 
-                else:
-                    seq[1:3] = phi_psi_list[i]
-                    
-                seq[3] = aa_index
-                seq[4] = ss_index
+        for pp_index, pp in enumerate(pp_chains):
+            phi_psi_list = pp.get_phi_psi_list()
+            missing_residues = chain_missing_residues[pp_index]
+                        
+            for i in xrange(1, len(phi_psi_list)-1):
+                seq = [0] * 6
+                mism = [eMISMASK.MOCAPY_HIDDEN] + 4 * [eMISMASK.MOCAPY_OBSERVED]
                 
-                 # Cis/Trans information   
-                if missing_residue[i-1]:
-                    mism[4] = eMISMASK.MOCAPY_MISSING # cis unknown   
-                else:                                        
-                    seq[5] = self.__get_conformation(res, pp[i-1])
+                # Amino acid
+                res = pp[i]
+                res_name = res.get_resname()
+                res_index = res.get_id()[1]
 
-            output_data.append(seq)
-            output_mismask.append(mism)
+                aa_index = three_to_index(res_name)
+                
+                if res_index in missing_residues:
+                    seq[3] = aa_index
+                    mism[1] = eMISMASK.MOCAPY_MISSING # angles unknown
+                    mism[3] = eMISMASK.MOCAPY_MISSING # ss unknown
+                    mism[4] = eMISMASK.MOCAPY_MISSING # cis unknown  
+                else:
+                    # Secondary Structure
+                    ss = res.xtra["SS_DSSP"]
+                    ss_index = dssp_to_index(ss)                
+                                     
+                    # Angles
+                    if None in phi_psi_list[i]:
+                    # Previous or next residue missing, therefore angles are
+                    # Unknown
+                        mism[1] = eMISMASK.MOCAPY_MISSING                                                 
+                    else:
+                        seq[1:3] = phi_psi_list[i]
+                        
+                    seq[3] = aa_index
+                    seq[4] = ss_index
+                    
+                     # Cis/Trans information   
+                    if (res_index - 1) in missing_residues:
+                        mism[4] = eMISMASK.MOCAPY_MISSING # cis unknown   
+                    else:                                        
+                        seq[5] = self.__get_conformation(res, pp[i-1])
+
+                output_data.append(seq)
+                output_mismask.append(mism)
 
         sequences.append(numpy.array(output_data))
         mismasks.append(numpy.array(output_mismask, dtype = numpy.uint))

@@ -16,3 +16,9 @@ class TorusDBNBuildPolypeptideException(TorusDBNException):
     """
     Can't build a list of Polypeptide objects.
     """
+    
+    
+class TorusDBNChainBreakException(TorusDBNException):
+    """
+    A chain break was detected and can't be handled.
+    """
