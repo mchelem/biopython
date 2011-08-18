@@ -128,12 +128,12 @@ class TorusDBNTrainer(object):
                         break
                         
         if (use_aic):
-            return self._calculate_AIC()
+            return self.calculate_AIC()
         else:
-            return self._calculate_BIC()
+            return self.calculate_BIC()
 
     
-    def _calculate_AIC(self):
+    def calculate_AIC(self):
         """ The Akaike information criterion (AIC) is a measure of the relative 
         goodness of fit of a statistical model.
         
@@ -147,7 +147,7 @@ class TorusDBNTrainer(object):
         return 2 * ll_full - 2 * self._get_parameter_count()
         
                 
-    def _calculate_BIC(self):
+    def calculate_BIC(self):
         """ The Bayesian information criterion (BIC) is a criterion for model 
         selection among a finite set of models.
         
