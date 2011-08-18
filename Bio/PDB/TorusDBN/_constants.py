@@ -3,19 +3,37 @@
 # license. Please see the LICENSE file that should have been included
 # as part of this package.
 
-# Bond length constants - primarily from Engh, Huber, 1991
+""" Bond length and angle constants.
+These constants are primarily extracted from Engh, Huber, 1991.
+
+Engh R A & Huber R (1991). Accurate bond and angle parameters for X-ray protein 
+structure refinement. Acta Cryst., A47, 392-400. DOI: 10.1107/S0108767391001071
+    
+"""
 import math
 
+
+
 class DefaultValueDict(dict):
+    """ Dictionary with default values for missing keys. """
     
-    def __init__(self, default, list_or_dict=None, **kwds):
-        if list_or_dict:
-            super(DefaultValueDict, self).__init__(list_or_dict)
+    def __init__(self, default, values=None, **kwds):
+        """
+        @param default: The default value when the key is missing.
+        @type: object
+        
+        @param values: The values to initialize the dictionary.
+        @type: list or dict            
+        """
+        if values:
+            super(DefaultValueDict, self).__init__(values)
         self.update(kwds)
         self.default = default
 
+
     def __getitem__(self, key):
         return self.get(key, self.default)
+
 
     def __copy__(self):
         return DefaultValueDict(self.default, self)
@@ -41,7 +59,7 @@ ANGLE_O_C_N = DefaultValueDict(123.0, {'PRO':122.0})
 BOND_LENGTH_C_N = DefaultValueDict(1.329, {'PRO':1.341})
 BOND_LENGTH_C_O = 1.231
 
-BOND_LENGTH = {
+BOND_LENGTH_MAINCHAIN = {
     ('CA', 'N'): DefaultValueDict(1.458, {'GLY': 1.451, 'PRO': 1.466}),
     ('C', 'CA'): DefaultValueDict(1.525, {'GLY': 1.516}),
     ('C', 'N'): DefaultValueDict(1.329, {'PRO': 1.341}),
@@ -89,7 +107,7 @@ BOND_LENGTH_PSEUDO_SIDECHAIN = {'ALA': 1.54, 'CYS': 2.8, 'ASP': 2.92, 'GLU': 3.1
     'MET': 3.185, 'ASN': 2.91, 'PRO': 2.29, 'GLN': 3.875, 'ARG': 4.8, 'SER': 2.43,
     'THR': 2.17, 'VAL': 2.19, 'TRP': 4.2, 'TYR': 4.27}
 
-BOND_ANGLE = {
+BOND_ANGLE_MAINCHAIN = {
     ('C', 'N', 'CA'): DefaultValueDict(121.7, {'GLY': 120.6, 'PRO': 122.6}),
     ('N', 'CA', 'C'): DefaultValueDict(111.2, {'GLY': 112.5, 'PRO': 111.8}),
     ('CA', 'C', 'N'): DefaultValueDict(116.2, {'GLY': 116.4, 'PRO': 1116.9}),
@@ -150,9 +168,22 @@ BOND_ANGLE_PSEUDO_SIDECHAIN = {'ALA': 89.8283, 'CYS': 118.8, 'ASP': 117.5,
 
 
 def get_bond_length(atom1, atom2, residue):
+    """ Get the length of a the bond between two given atoms, according to the 
+    residue.
+    
+    @param atom1: The first atom in the bond.
+    @type atom1: str (one of the atoms defined in the L{ATOMS} constant)
+    
+    @param atom2: The second atom in the bond.
+    @type atom2: str (one of the atoms defined in the L{ATOMS} constant)
+    
+    @rtype: float
+    @return: The bond length. 
+        
+    """
     bond_length =  0.0    
 
-    # Hydrogen atoms are not from Engh, Huber, 1991
+    # Hydrogen atoms are not from Engh, Huber, 1991.
     if ATOMS.index(atom2) >= ATOMS.index('H') and \
         ATOMS.index(atom2) <= ATOMS.index('H3'):
         bond_length = 1.0
@@ -163,7 +194,7 @@ def get_bond_length(atom1, atom2, residue):
             atom1, atom2 = atom2, atom1        
         
         try:
-            bond_length = BOND_LENGTH[(atom1, atom2)][residue]
+            bond_length = BOND_LENGTH_MAINCHAIN[(atom1, atom2)][residue]
         except KeyError:
             try:
                 bond_length = BOND_LENGTH_SIDECHAIN[residue][atom1, atom2]
@@ -174,13 +205,26 @@ def get_bond_length(atom1, atom2, residue):
     return bond_length
         
         
-
-
 def get_bond_angle(atom1, atom2, atom3, residue):
+    """ Get the angle of the bond between three atoms, according to the residue.
+    
+    @param atom1: The first atom in the bond.
+    @type atom1: str (one of the atoms defined in the L{ATOMS} constant)
+    
+    @param atom2: The second atom in the bond.
+    @type atom2: str (one of the atoms defined in the L{ATOMS} constant)
+    
+    @param atom3: The third atom in the bond.
+    @type atom3: str (one of the atoms defined in the L{ATOMS} constant)
+    
+    @rtype: float
+    @return: The bond angle. 
+    
+    """
     bond_angle = 0.0
 
     try:
-        bond_angle = BOND_ANGLE[(atom1, atom2, atom3)][residue]
+        bond_angle = BOND_ANGLE_MAINCHAIN[(atom1, atom2, atom3)][residue]
     except KeyError:
         try:
             bond_angle = BOND_ANGLE_SIDECHAIN[residue][atom1, atom2, atom3]

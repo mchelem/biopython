@@ -31,7 +31,7 @@ class TorusDBNModelTestCase(unittest.TestCase):
         
         # Setting only the aa sequence
         model.set_aa('ACDEFGHIK')                     
-        sample = model.sample()   
+        model.sample()   
         
         self.assertEquals(model.get_aa(), 'ACDEFGHIK')
         self.assertEquals(model.get_ss(), 'ECCHHEHEE')
@@ -59,7 +59,7 @@ class TorusDBNModelTestCase(unittest.TestCase):
         model.set_aa('ACDE')
         model.set_cis([1, 1, 0, 0])              
         model.set_ss('ECCE')
-        sample = model.sample()    
+        model.sample()    
         
         self.assertEquals(model.get_aa(), 'ACDE')
         self.assertEquals(model.get_ss(), 'ECCE')
@@ -78,7 +78,7 @@ class TorusDBNModelTestCase(unittest.TestCase):
         model = TorusDBNModel(seed=123)   
         model.set_aa('ACDE')
         model.set_angles([[1.49, -0.64, 1.32, -0.66], [-1.64, 1.34, -0.79, 1.29]])        
-        sample = model.sample()   
+        model.sample()   
         
         self.assertEquals(model.get_aa(), 'ACDE')
         self.assertEquals(model.get_ss(), 'CCCH')

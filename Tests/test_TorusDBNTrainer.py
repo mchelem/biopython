@@ -6,7 +6,6 @@
 import unittest
 import os
 
-
 from Bio.PDB.TorusDBN.TorusDBNTrainer import TorusDBNTrainer
 
 
@@ -28,29 +27,28 @@ class TorusDBNTrainerTestCase(unittest.TestCase):
         training_set = self.get_training_set()  
 
         # setting seed for reproducibility
-        trainer = TorusDBNTrainer(seed=123, show_info=True, show_warnings=False) 
+        trainer = TorusDBNTrainer(seed=123, show_info=True, show_warnings=True) 
         trainer.em_steps = 10 
-        trainer.burnin_steps = 5
+        trainer.burnin_steps = 5        
+        missing_residues = os.path.join(self.datadir, "missing_residues")
         
-        BIC = trainer.train(
-            training_set, 
-            missing_residues=os.path.join(self.datadir, "missing_residues")
-        )
+        BIC = trainer.train(training_set, missing_residues=missing_residues)
         self.assertAlmostEquals(BIC, -63897.94317, places=4)
         
-        AIC = trainer.train(training_set, use_aic=True)
+        AIC = trainer.train(
+            training_set, use_aic=True, missing_residues=missing_residues)
         self.assertAlmostEquals(AIC, -36759.810827, places=4)   
         
         
     def test_model_optimization(self):
         training_set = self.get_training_set()        
         
-        trainer = TorusDBNTrainer(seed=123, show_info=True, show_warnings=False)
+        trainer = TorusDBNTrainer(seed=123, show_info=True, show_warnings=True)
         trainer.em_steps = 10
         trainer.burnin_steps = 5
         
         hidden_node_size, IC = trainer.find_optimal_model(training_set,
-            node_samples=1, max_node=30, full_ll_dec=True)
+            node_samples=1, max_node=30, check_decreasing_ll=True)
             
         self.assertEquals(hidden_node_size, 5)
         self.assertAlmostEquals(IC ,  -1702.49251, places=4)
