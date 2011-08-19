@@ -1,12 +1,23 @@
 # Missing residues for the training set on the TorusDBN/PDB directory
-# Chain index and residues position start from 1
 
-# file      chain index     pos     residue
-1FAT.pdb        1,3,4       37      GLY
-1FAT.pdb        3:4         36      ASN
+# file      chain   pos     residue
+1FAT.pdb    A       37      GLY
+1FAT.pdb    C       37      GLY
+1FAT.pdb    D       37      GLY
+1FAT.pdb    C       36      ASN
+1FAT.pdb    D       36      ASN
 
-1BJQ.pdb        1,3:7       79      VAL  
-1BJQ.pdb        1,3:7       80      ASN
-
+1BJQ.pdb    A       79      VAL
+1BJQ.pdb    C       79      VAL  
+1BJQ.pdb    D       79      VAL  
+1BJQ.pdb    E       79      VAL  
+1BJQ.pdb    F       79      VAL  
+1BJQ.pdb    G       79      VAL    
+1BJQ.pdb    A       80      ASN
+1BJQ.pdb    C       80      ASN
+1BJQ.pdb    D       80      ASN
+1BJQ.pdb    E       80      ASN
+1BJQ.pdb    F       80      ASN
+1BJQ.pdb    G       80      ASN
 
 

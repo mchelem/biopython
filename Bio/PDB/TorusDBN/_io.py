@@ -21,7 +21,7 @@ from Bio.PDB.TorusDBN._structure import dssp_to_index
 
 
 
-def create_sequence_from_file(chain_pdb, missing_residues, quiet_parser=True):
+def create_sequence_from_file(chain_pdb, missing_residues, quiet_parser=False):
     """ Read a PDB file and creates a sequence and mismask to represent 
     its content.
     
@@ -49,6 +49,7 @@ def create_sequence_from_file(chain_pdb, missing_residues, quiet_parser=True):
     # Loop over residues in peptides
     ppb = PPBuilder()
     pp_list = ppb.build_peptides(structure[0])
+    chain_list = structure[0].get_list()
     
     if len(pp_list) == 0:
         raise TorusDBNBuildPolypeptideException(
@@ -57,7 +58,7 @@ def create_sequence_from_file(chain_pdb, missing_residues, quiet_parser=True):
         )
     else:
        pp_chains, chain_missing_residues = _get_pp_with_chain_break(
-            chain_pdb, pp_list, missing_residues)
+            chain_pdb, pp_list, chain_list, missing_residues)
                    
     for pp_index, pp in enumerate(pp_chains):
         phi_psi_list = pp.get_phi_psi_list()
@@ -98,8 +99,11 @@ def create_sequence_from_file(chain_pdb, missing_residues, quiet_parser=True):
                  # Cis/Trans information   
                 if (res_index - 1) in missing_residues:
                     mism[4] = eMISMASK.MOCAPY_MISSING # cis unknown   
-                else:                                        
-                    seq[5] = _get_peptide_bond_conformation(res, pp[i-1])
+                else: 
+                    try:                                    
+                        seq[5] = _get_peptide_bond_conformation(res, pp[i-1])
+                    except TorusDBNException:
+                        mism[4] = eMISMASK.MOCAPY_MISSING # cis unknown
 
             output_data.append(seq)
             output_mismask.append(mism)
@@ -113,29 +117,18 @@ def read_missing_residues(filename):
     """ Read missing residues from a file.
     
     The file format is the following:
-    # file  chain_id    position    residue
-    'mychain.pdb'  1           23         ALA   # one position
-    'mychain.pdb'  3          2:4         LEU   # position range
-    'other.pdb     1          1,3         GLY   # position list
+    # file         chain    position    residue
+    'mychain.pdb'  A        23          ALA
+    'mychain.pdb'  C        27          LEU
+    'other.pdb     A        12          GLY
     
     @param filename: The file describing the missing residues.
     @type filename: str
     
     @rtype: dict
-    @return: Dictionary of residues whose key is the (file, chain_id, position).
+    @return: Dictionary of residues whose key is the (file, chain, position).
     
     """
-    def get_chain_index(chain_index):
-        if chain_index.find(':'):
-            index_range = chain_index.split(':') 
-            chain_index_list = range(
-                int(index_range[0]), 
-                int(index_range[-1]) + 1
-            )
-        else:
-            chain_index_list = [int(index)]
-        return chain_index_list
-            
     try:
         missing_residues = {}
         if not os.path.isfile(filename):
@@ -147,22 +140,10 @@ def read_missing_residues(filename):
             line = line.strip()
             if not line.startswith("#") and len(line) > 1:
                 try: 
-                    chain_pdb, chain_id, res_index, res_name = \
-                        line.split()
-                        
-                    chain_index_list = []
-                    
-                    if chain_id.find(',') != -1:
-                        chain_list = chain_id.split(',') 
-                        for chain in chain_list:
-                            chain_index_list += get_chain_index(chain)                                
-                    else:
-                        chain_index_list += get_chain_index(chain_id)
-                    
-                    for chain_index in chain_index_list:
-                        missing_residues[
-                            (chain_pdb, int(chain_index), int(res_index))
-                        ] = Residue(id=('', int(res_index), ''), resname=res_name, segid='')
+                    chain_pdb, chain, res_index, res_name = line.split()
+                    missing_residues[
+                        (chain_pdb, chain, int(res_index))
+                    ] = Residue(id=('', int(res_index), ''), resname=res_name, segid='')
                 except ValueError:
                     TorusDBNException(
                         "Could not read missing residues file %s at line %d." % 
@@ -173,7 +154,7 @@ def read_missing_residues(filename):
     return missing_residues
         
         
-def _get_missing_residue(missing_residues, chain_pdb, chain_index, residue_index):  
+def _get_missing_residue(missing_residues, chain_pdb, chain, residue_index):  
     """ Get the missing residues corresponding to a file, chain and position.
     
     @param missing_residues: Dictionary of residues indexed by 
@@ -183,8 +164,8 @@ def _get_missing_residue(missing_residues, chain_pdb, chain_index, residue_index
     @param chain_pdb: The filename where the chain is described.
     @type chain_pdb: str
     
-    @param chain_index: The index of the chain in the file.
-    @type chain_index: int
+    @param chain: The chain identifier.
+    @type chain: str
     
     @param residue_index: The position of the residue in the chain
     @type residue_index: int
@@ -194,50 +175,77 @@ def _get_missing_residue(missing_residues, chain_pdb, chain_index, residue_index
     """
     chain_pdb = os.path.split(chain_pdb)[-1]
     try:
-        return missing_residues[(chain_pdb, chain_index, residue_index)]
+        return missing_residues[(chain_pdb, chain, residue_index)]
     except:
         raise TorusDBNChainBreakException(
-            "Chain break in file %s, chain %d, residue %d, could not be handled." % 
-            (chain_pdb, chain_index, residue_index)
+            "Chain break in file %s, chain %s, residue %d, could not be handled." % 
+            (chain_pdb, chain, residue_index)
         )
     
     
-def _get_pp_with_chain_break(chain_pdb, pp_list, missing_residues_dict):
+def _get_pp_with_chain_break(chain_pdb, pp_list, chain_list, missing_residues_dict):
     """ Get the polypeptides chains for a given chain file, adding missing
     residues.
     
     @param chain_pdb: The file containing the chains.
     @type chain_pdb: str
     
-    @param pp_list: List of the polypeptide chains.
+    @param pp_list: List of polypeptides.
     @type pp_list: list(Polypeptide)
+    
+    @param pp_list: List of chains.
+    @type pp_list: list(Chain)
     
     @param missing_residues_dict: Dictionary of residues indexed by 
         (file, chain_id, position).
     @type missing_residues_dict: dict
     
     @rtype: tuple(list(Polypeptide), list(int))
-    @return: Polypeptide chains and list with missing residues position.
+    @return: Polypeptides and list with missing residues position.
+    
     """
-    pp_chains = []
+    pp_list_new = []
     missing_residues = []
-                   
-    for pp in pp_list:
-        if pp[0].get_id()[1] == 1:
-            pp_chains.append(pp)  
-            missing_residues.append([])                                  
-        else:
-            last_residue = pp_chains[-1][-1].get_id()[1] + 1
-            first_residue = pp[0].get_id()[1]                    
+    
+    pp_list_new.append(pp_list[0])
+    missing_residues.append([])  
+    chain_index = 0
+    
+    for i, pp in enumerate(pp_list[1:]):
+        last_residue = pp_list_new[-1][-1].get_id()[1] + 1
+        first_residue = pp[0].get_id()[1]  
+        if last_residue < first_residue:                  
             missing_residues_index = range(last_residue, first_residue)
-            missing_residues[-1] += missing_residues_index
-            
+            residues = []
             for res_index in missing_residues_index:
-                pp_chains[-1].append(_get_missing_residue(
-                    missing_residues_dict, chain_pdb, len(pp_chains), res_index))
-            pp_chains[-1] += pp
+                try:
+                    res = _get_missing_residue(
+                        missing_residues_dict, 
+                        chain_pdb, 
+                        chain_list[chain_index].get_id(), 
+                        res_index,
+                    ) 
+                    residues.append(res)
+                except:
+                    residues = []
+                    break
+                    
+            if len(residues) > 0:
+                for res in residues:
+                    pp_list_new[-1].append(res)
+                missing_residues[-1] += missing_residues_index
+                pp_list_new[-1] += pp        
 
-    return pp_chains, missing_residues
+            else: 
+                pp_list_new.append(pp)  
+                missing_residues.append([])  
+                chain_index += 1
+        else:
+            pp_list_new.append(pp)  
+            missing_residues.append([])  
+            chain_index += 1  
+
+    return pp_list_new, missing_residues
 
 
 def _get_peptide_bond_conformation(res, prev_res):
@@ -256,11 +264,14 @@ def _get_peptide_bond_conformation(res, prev_res):
     CIS = 0
     TRANS = 1
     
-    CA_prev = prev_res['CA'].get_vector()
-    C_prev = prev_res['C'].get_vector()
-    N = res['N'].get_vector()
-    CA = res['CA'].get_vector()
-    dihedral = calc_dihedral(CA_prev, C_prev, N, CA)
+    try: 
+        CA_prev = prev_res['CA'].get_vector()
+        C_prev = prev_res['C'].get_vector()
+        N = res['N'].get_vector()
+        CA = res['CA'].get_vector()
+        dihedral = calc_dihedral(CA_prev, C_prev, N, CA)
+    except: 
+        raise TorusDBNException("Could not obtain the conformation of the peptide bond.")
 
     if abs(dihedral) < math.pi/4:
         return CIS

@@ -205,7 +205,7 @@ class TorusDBNTrainer(object):
             self.info('Reading data from training file %s...' % (filename))
             try:
                 sequences, mismasks = create_sequence_from_file(
-                    filename, missing_residues)
+                    filename, missing_residues, not self.show_warnings)
                 seq_list += sequences
                 mismask_list += mismasks
             except (TorusDBNBuildPolypeptideException, 
