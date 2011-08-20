@@ -191,11 +191,12 @@ class TorusDBNModel(object):
         self.mismask_sample = numpy.ones((sequence_len, num_nodes), dtype=numpy.uint)
         self.mismask = numpy.zeros((sequence_len, num_nodes), dtype=numpy.uint)
         self.mismask[:,0] = 1
-        
-        if len(self._angles) > 0:            
+                
+        if len(self._angles) > 0:    
+            angles = self._angles.transpose()
             self.mismask_sample[:,1] = numpy.zeros(sequence_len) 
-            self.sequence[:,1] = numpy.array(self._angles[0])  
-            self.sequence[:,2] = numpy.array(self._angles[1])                       
+            self.sequence[:,1] = numpy.array(angles[0])  
+            self.sequence[:,2] = numpy.array(angles[1])                       
 
         self._set_sequence_and_mismask(self._aa, 2, sequence_len) 
         self._set_sequence_and_mismask(self._ss, 3, sequence_len) 
@@ -294,12 +295,14 @@ class TorusDBNModel(object):
         >> model = TorusDBNModel()
         >>  model.set_aa('ACDE')
         >> model.set_angles([
-            [1.49, -0.64, 1.32, -0.66], 
-            [-1.64, 1.34, -0.79, 1.29]
-        ])        
+            [1.49, -1.64],
+            [-0.64, 1.34],
+            [1.32, -0.79],
+            [-0.66, 1.29],
+        ])    
         
         """
-        self._angles = angles
+        self._angles = numpy.array(angles)
         self._must_update_sequence = True
         
         

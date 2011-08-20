@@ -77,9 +77,14 @@ class TorusDBNModelTestCase(unittest.TestCase):
         # Setting aa sequence and angles
         model = TorusDBNModel(seed=123)   
         model.set_aa('ACDE')
-        model.set_angles([[1.49, -0.64, 1.32, -0.66], [-1.64, 1.34, -0.79, 1.29]])        
+        model.set_angles([
+            [1.49, -1.64],
+            [-0.64, 1.34],
+            [1.32, -0.79],
+            [-0.66, 1.29],
+        ])
         model.sample()   
-        
+    
         self.assertEquals(model.get_aa(), 'ACDE')
         self.assertEquals(model.get_ss(), 'CCCH')
         self.assertEquals(model.get_cis().tolist(), [1.0, 0.0, 1.0, 0.0])  
