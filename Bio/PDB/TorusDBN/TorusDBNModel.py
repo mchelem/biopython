@@ -168,8 +168,7 @@ class TorusDBNModel(object):
                 
         inf_engine = SampleInfEngineHMM(
             self.dbn, self.sequence, self.mismask_sample, hidden_node_index=0)                        
-        self.sample_data = inf_engine.sample_next()     
-        
+        self.sample_data = inf_engine.sample_next()           
         self._save_sample(self.sample_data)   
                 
         

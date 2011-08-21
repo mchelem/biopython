@@ -27,7 +27,7 @@ class TorusDBNTrainerTestCase(unittest.TestCase):
         training_set = self.get_training_set()  
 
         # setting seed for reproducibility
-        trainer = TorusDBNTrainer(seed=123, show_info=True, show_warnings=True) 
+        trainer = TorusDBNTrainer(seed=123, show_info=True, show_warnings=False) 
         trainer.em_steps = 10 
         trainer.burnin_steps = 5        
         missing_residues = os.path.join(self.datadir, "missing_residues")
@@ -43,7 +43,7 @@ class TorusDBNTrainerTestCase(unittest.TestCase):
     def test_model_optimization(self):
         training_set = self.get_training_set()        
         
-        trainer = TorusDBNTrainer(seed=123, show_info=True, show_warnings=True)
+        trainer = TorusDBNTrainer(seed=123, show_info=True, show_warnings=False)
         trainer.em_steps = 10
         trainer.burnin_steps = 5
         

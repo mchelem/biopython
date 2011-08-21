@@ -117,7 +117,6 @@ class TorusDBNModelTestCase(unittest.TestCase):
         self.assertEquals(model.get_ss(), loaded_model.get_ss())
 
         
-        
 
 if __name__ == '__main__':
     runner = unittest.TextTestRunner(verbosity=2)

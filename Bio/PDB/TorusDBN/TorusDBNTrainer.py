@@ -87,7 +87,7 @@ class TorusDBNTrainer(object):
             training_set, missing_residues)      
         self.info('Training started...')
         ic = self._train(use_aic)
-        self.info('Training finished.')
+        self.info('Training finished.\n')
         
         if not self.show_warnings:
             warnings.filters = warning_list
@@ -201,6 +201,7 @@ class TorusDBNTrainer(object):
             warning_list = warnings.filters[:]
             warnings.filterwarnings('ignore', category=TorusDBNWarning)
             
+        training_set_count = len(training_set)
         for filename in training_set:
             self.info('Reading data from training file %s...' % (filename))
             try:
@@ -213,7 +214,8 @@ class TorusDBNTrainer(object):
                     "%s The file was not included in the training set." % error,
                     TorusDBNWarning
                 )
-                
+                training_set_count -= 1
+        self.info('\n%d files included in the training set.' % (training_set_count))
         if not self.show_warnings:
             warnings.filters = warning_list
         

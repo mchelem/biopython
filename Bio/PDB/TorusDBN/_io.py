@@ -255,7 +255,6 @@ def _get_pp_with_chain_break(chain_pdb, pp_list, chain_list, missing_residues_di
             chain_index += 1  
     
     if len(pp_list_new) != len(chain_list):
-        print pp_list, pp_list_new, chain_list 
         raise TorusDBNChainBreakException(
             "Chain break in file %s could not be handled." % (chain_pdb))
             
