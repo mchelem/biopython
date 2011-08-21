@@ -6,7 +6,7 @@
 from time import time
 import numpy
 
-from mocapy.framework import DBN, NodeFactory, mocapy_seed
+from mocapy.framework import DBN, NodeFactory, mocapy_seed, DiscreteNode
 from mocapy.inference import SampleInfEngineHMM, LikelihoodInfEngineHMM
 
 from Bio.PDB.PDBIO import PDBIO
@@ -70,7 +70,22 @@ class TorusDBNModel(object):
         """
         self.dbn = DBN()
         self.dbn.load(filename)
+        self._set_nodes_size()
         
+    
+    def _set_nodes_size(self):
+        """ Set the model node sizes from the DBN. """
+        nodes = self.dbn.get_nodes_0()
+        if len(nodes) != 5 or nodes[0].get_name() != 'h1' or \
+            nodes[1].get_name() != 'd' or nodes[2].get_name() != 'a' or \
+            nodes[3].get_name() != 's' or nodes[4].get_name() != 'c':
+            raise TorusDBNException("DBN file does not represent a TorusDBN model.")
+        
+        self.size_h = nodes[0].get_node_size()   
+        self.size_aa = nodes[2].get_node_size()       
+        self.size_ss = nodes[3].get_node_size()               
+        self.size_cis = nodes[4].get_node_size() 
+            
         
     def save_dbn(self, filename):
         """ Save a dynamic Bayesian network to a file.
