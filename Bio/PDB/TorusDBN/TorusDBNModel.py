@@ -11,6 +11,7 @@ from mocapy.inference import SampleInfEngineHMM, LikelihoodInfEngineHMM
 
 from Bio.PDB.PDBIO import PDBIO
 
+from Bio.PDB.TorusDBN.TorusDBNExceptions import TorusDBNException
 from Bio.PDB.TorusDBN._structure import aa_sequence_to_indexes, ss_sequence_to_indexes, \
     indexes_to_aa_sequence, indexes_to_ss_sequence, build_structure
 from Bio.PDB.TorusDBN._geometry import calculate_coordinates
@@ -161,6 +162,10 @@ class TorusDBNModel(object):
         if self._must_update_sequence:
             self._update_sequence()            
         
+        if self.sequence is None:
+            raise TorusDBNException("No parameters set for sampling.\n"
+                "You must set at least one of the model parameters before sampling.")     
+                
         inf_engine = SampleInfEngineHMM(
             self.dbn, self.sequence, self.mismask_sample, hidden_node_index=0)                        
         self.sample_data = inf_engine.sample_next()     

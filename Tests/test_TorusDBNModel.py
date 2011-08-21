@@ -97,9 +97,27 @@ class TorusDBNModelTestCase(unittest.TestCase):
         
         self.check_angles(model.get_angles().tolist(), angles_expected)                   
         self.assertAlmostEquals(model.get_log_likelihood(), -31.80456, places=4)        
-        model.save_structure(os.path.join(self.datadir, 'test_TorusDBN.pdb'))                    
             
+    
+    def test_save_load_dbn(self):
+        filename = os.path.join(self.datadir, 'test_save.dbn')
+        model = TorusDBNModel(seed=123)
+        model.create_dbn(hidden_node_size=55)
+        model.save_dbn(filename)        
+        model.set_aa('ACDE')
+        model.sample()
 
+        loaded_model = TorusDBNModel(seed=123)
+        loaded_model.load_dbn(filename)
+        loaded_model.set_aa('ACDE')
+        loaded_model.sample()
+        
+        self.check_angles(model.get_angles(), loaded_model.get_angles())        
+        self.assertEquals(model.get_cis().tolist(), loaded_model.get_cis().tolist())
+        self.assertEquals(model.get_ss(), loaded_model.get_ss())
+
+        
+        
 
 if __name__ == '__main__':
     runner = unittest.TextTestRunner(verbosity=2)

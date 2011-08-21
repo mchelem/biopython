@@ -14,7 +14,7 @@ from mocapy.inference import GibbsRandom, LikelihoodInfEngineHMM
 
 from Bio.PDB.TorusDBN import TorusDBNModel
 from Bio.PDB.TorusDBN.TorusDBNExceptions import TorusDBNBuildPolypeptideException, \
-    TorusDBNChainBreakException, TorusDBNWarning
+    TorusDBNChainBreakException, TorusDBNException, TorusDBNWarning
 from Bio.PDB.TorusDBN._io import read_missing_residues, create_sequence_from_file
 
 
@@ -84,7 +84,7 @@ class TorusDBNTrainer(object):
             missing_residues = read_missing_residues(missing_residues)
             
         self.seq_list, self.mismask_list = self._create_sequence_and_mismask(
-            training_set, missing_residues)         
+            training_set, missing_residues)      
         self.info('Training started...')
         ic = self._train(use_aic)
         self.info('Training finished.')
@@ -208,8 +208,7 @@ class TorusDBNTrainer(object):
                     filename, missing_residues, not self.show_warnings)
                 seq_list += sequences
                 mismask_list += mismasks
-            except (TorusDBNBuildPolypeptideException, 
-                TorusDBNChainBreakException) as error:
+            except TorusDBNException as error:
                 warnings.warn(
                     "%s The file was not included in the training set." % error,
                     TorusDBNWarning
@@ -217,7 +216,7 @@ class TorusDBNTrainer(object):
                 
         if not self.show_warnings:
             warnings.filters = warning_list
-            
+        
         return seq_list, mismask_list        
             
             

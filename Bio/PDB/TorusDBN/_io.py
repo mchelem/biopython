@@ -16,7 +16,7 @@ from Bio.PDB.Polypeptide import PPBuilder, three_to_index
 from Bio.PDB.Vector import calc_dihedral
 
 from Bio.PDB.TorusDBN.TorusDBNExceptions import TorusDBNException, \
-    TorusDBNChainBreakException
+    TorusDBNChainBreakException, TorusDBNBuildPolypeptideException
 from Bio.PDB.TorusDBN._structure import dssp_to_index
 
 
@@ -81,9 +81,15 @@ def create_sequence_from_file(chain_pdb, missing_residues, quiet_parser=False):
                 mism[3] = eMISMASK.MOCAPY_MISSING # ss unknown
                 mism[4] = eMISMASK.MOCAPY_MISSING # cis unknown  
             else:
+                seq[3] = aa_index
+
                 # Secondary Structure
-                ss = res.xtra["SS_DSSP"]
-                ss_index = dssp_to_index(ss)                
+                try:
+                    ss = res.xtra["SS_DSSP"]
+                    ss_index = dssp_to_index(ss)
+                    seq[4] = ss_index    
+                except:
+                    mism[3] = eMISMASK.MOCAPY_MISSING # ss unknown
                                  
                 # Angles
                 if None in phi_psi_list[i]:
@@ -92,9 +98,6 @@ def create_sequence_from_file(chain_pdb, missing_residues, quiet_parser=False):
                     mism[1] = eMISMASK.MOCAPY_MISSING                                                 
                 else:
                     seq[1:3] = phi_psi_list[i]
-                    
-                seq[3] = aa_index
-                seq[4] = ss_index
                 
                  # Cis/Trans information   
                 if (res_index - 1) in missing_residues:
@@ -108,8 +111,14 @@ def create_sequence_from_file(chain_pdb, missing_residues, quiet_parser=False):
             output_data.append(seq)
             output_mismask.append(mism)
 
-    sequences.append(numpy.array(output_data))
-    mismasks.append(numpy.array(output_mismask, dtype = numpy.uint))
+    if output_data and output_mismask:
+        sequences.append(numpy.array(output_data))
+        mismasks.append(numpy.array(output_mismask, dtype = numpy.uint))
+    else: 
+        raise TorusDBNException(
+            "Could not create training data from the file %s." 
+            % (chain_pdb)
+        )
     return sequences, mismasks    
 
 
@@ -244,7 +253,12 @@ def _get_pp_with_chain_break(chain_pdb, pp_list, chain_list, missing_residues_di
             pp_list_new.append(pp)  
             missing_residues.append([])  
             chain_index += 1  
-
+    
+    if len(pp_list_new) != len(chain_list):
+        print pp_list, pp_list_new, chain_list 
+        raise TorusDBNChainBreakException(
+            "Chain break in file %s could not be handled." % (chain_pdb))
+            
     return pp_list_new, missing_residues
 
 
